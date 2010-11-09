@@ -18,6 +18,7 @@ all: $(STUBS)
 	@make -C sprx/libio --no-print-directory
 	@make -C sprx/libaudio --no-print-directory
 	@make -C lib/libreality --no-print-directory
+	@make -C lib/libconsole --no-print-directory
 
 clean:
 	rm -f $(STUBS) stub/crt1.o stub.a
@@ -32,6 +33,7 @@ clean:
 	@make -C sprx/libio clean --no-print-directory
 	@make -C sprx/libaudio clean --no-print-directory
 	@make -C lib/libreality clean --no-print-directory
+	@make -C lib/libconsole clean --no-print-directory
 
 install: all
 	@mkdir -p $(PSL1GHT)/include $(PSL1GHT)/lib $(PSL1GHT)/bin
