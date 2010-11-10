@@ -48,6 +48,11 @@ int close(int fd)
 	return lv2Errno(lv2FsClose(fd));
 }
 
+int unlink(const char* path)
+{
+	return lv2Errno(lv2FsUnlink(path));
+}
+
 ssize_t write(int fd, const void* buffer, size_t size)
 {
 	if (fd & SOCKET_FD_MASK)

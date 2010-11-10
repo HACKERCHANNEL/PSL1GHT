@@ -110,13 +110,13 @@ SECTIONS
 
 	. = ALIGN(64K);
 	.ppu_data           : { *(.ppu_data .ppu_data.*) } : hdr_data
+	.data.sceFStub  : { KEEP (*(.data.sceFStub)) } : hdr_data
 	.sdata2             : {
 		*(.sdata2 .sdata2.* .gnu.linkonce.s2.*)
 	}
 	.sbss2              : { *(.sbss2 .sbss2.* .gnu.linkonce.sb2.*) }
 	
 	. = ALIGN(64K);
-	. = DATA_SEGMENT_ALIGN(64K, 64K);
 
 	.eh_frame_hdr : { *(.eh_frame_hdr) }
 	.eh_frame       : ONLY_IF_RO { KEEP (*(.eh_frame)) }
@@ -175,9 +175,11 @@ SECTIONS
 	.jcr            : { KEEP (*(.jcr)) }
 	.data.rel.ro : { *(.data.rel.ro.local* .gnu.linkonce.d.rel.ro.local.*) *(.data.rel.ro* .gnu.linkonce.d.rel.ro.*) }
 	.dynamic        : { *(.dynamic) }
-	. = DATA_SEGMENT_RELRO_END (0, .);
-	
-	.data.sceFStub  : { KEEP (*(.data.sceFStub)) KEEP (*(SORT(.data.sceFStub.*))) } : hdr_data
+
+	.toc1		  : ALIGN(8) { *(.toc1) }
+	.opd		  : ALIGN(8) { KEEP (*(.opd)) }
+	.branch_lt	  : ALIGN(8) { *(.branch_lt) }
+	.got		: ALIGN(8) { *(.got .toc) }
 
 	. = ALIGN(256M);
 
@@ -192,10 +194,6 @@ SECTIONS
 		SORT(CONSTRUCTORS)
 	} : hdr_sdata
 	.data1          : { *(.data1) }
-	.toc1		  : ALIGN(8) { *(.toc1) }
-	.opd		  : ALIGN(8) { KEEP (*(.opd)) }
-	.branch_lt	  : ALIGN(8) { *(.branch_lt) }
-	.got		: ALIGN(8) { *(.got .toc) }
   /* We want the small data sections together, so single-instruction offsets
      can access them all, and initialized data all before uninitialized, so
      we can shorten the on-disk segment size.  */
@@ -227,7 +225,6 @@ SECTIONS
 	. = ALIGN(64 / 8);
 	. = ALIGN(64 / 8);
 	_end = .; PROVIDE (end = .);
-	. = DATA_SEGMENT_END (.);
 	/* Stabs debugging sections.  */
 	.stab          0 : { *(.stab) }
 	.stabstr       0 : { *(.stabstr) }
