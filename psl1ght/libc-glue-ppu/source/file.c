@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <stdio.h>
 
+
 #include <sys/socket.h>
 
 #define DEFAULT_FILE_MODE (S_IRWXU | S_IRWXG | S_IRWXO)
@@ -92,14 +93,31 @@ ssize_t read(int fd, void* buffer, size_t size)
 
 int fstat(int fd, struct stat* st)
 {
-	errno = ENOSYS;
-	return -1;
+	if (fd) {
+	    int ret;
+	    ret = lv2FsFstat(fd,st);
+	    if (ret)
+		return lv2Errno(ret)
+	} 
+	else {
+	    errno = EBADF;
+	    return -1;
+	}
+	return 0;
 }
 
 int stat(const char* path, struct stat* buf)
 {
-	errno = ENOSYS;
-	return -1;
+	if (path != NULL) {
+	    int ret;
+	    ret = lv2FsStat(path,buf)
+	    if (ret)
+		return lv2Errno(ret)
+	} else {
+	    errno = ENOENT;
+	    return -1;
+	}
+	return 0;
 }
 
 off_t lseek(int fd, off_t offset, int whence)
@@ -124,3 +142,28 @@ int chmod(const char* path, mode_t mode)
 	return lv2Errno(lv2FsChmod(path, mode));
 }
 
+int fsync(int fd)
+{   
+    if (fd){
+	    ret = lv2FsSync(fd));
+	    if (ret)
+		return lv2Errno(ret);
+    } 
+    else {
+	errno = EBADF;
+	return -1;
+    }
+}
+
+int utime(const char *path, const struct utimbuf *times){
+    if (path != NULL){
+	int ret;
+	ret = lv2FsUtime(path,times);
+	if (ret)
+	    return lv2Errno(ret);
+    } else {
+	errno = ENOENT;
+	return -1;
+    }
+    return 0;
+}
