@@ -97,7 +97,7 @@ int fstat(int fd, struct stat* st)
 	    int ret;
 	    ret = lv2FsFstat(fd,st);
 	    if (ret)
-		return lv2Errno(ret)
+		return lv2Errno(ret);
 	} 
 	else {
 	    errno = EBADF;
@@ -112,7 +112,7 @@ int stat(const char* path, struct stat* buf)
 	    int ret;
 	    ret = lv2FsStat(path,buf)
 	    if (ret)
-		return lv2Errno(ret)
+		return lv2Errno(ret);
 	} else {
 	    errno = ENOENT;
 	    return -1;
