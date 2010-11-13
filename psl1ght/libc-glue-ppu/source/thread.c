@@ -62,3 +62,78 @@ s32 sys_ppu_thread_rename(sys_ppu_thread_t id, char* name)
 {
 	return lv2ThreadRename(id, name);
 }
+
+s32 sys_mutex_create(sys_mutex_t * mutexid, const sys_mutex_attribute_t *attr)
+{
+	return lv2MutexCreate(mutexid, attr);
+}
+
+s32 sys_mutex_destroy(sys_mutex_t mutexid)
+{
+	return lv2MutexDestroy(mutexid);
+}
+
+s32 sys_mutex_lock(sys_mutex_t mutexid, u64 timeout_usec)
+{
+	return lv2MutexLock(mutexid, timeout_usec);
+}
+
+s32 sys_mutex_trylock(sys_mutex_t mutexid)
+{
+	return lv2MutexTrylock(mutexid);
+}
+
+s32 sys_mutex_unlock(sys_mutex_t mutexid)
+{
+	return lv2MutexUnlock(mutexid);
+}
+
+s32 sys_cond_create(sys_cond_t * condid, sys_mutex_t mutexid, const sys_cond_attribute_t *attr)
+{
+	return lv2CondCreate(condid, mutexid, attr);
+}
+
+s32 sys_cond_destroy(sys_cond_t condid)
+{
+	return lv2CondDestroy(condid);
+}
+
+s32 sys_cond_wait(sys_cond_t condid, u64 timeout_usec)
+{
+	return lv2CondWait(condid, timeout_usec);
+}
+
+s32 sys_cond_signal(sys_cond_t condid)
+{
+	return lv2CondSignal(condid);
+}
+
+s32 sys_cond_signal_all(sys_cond_t condid)
+{
+	return lv2CondSignalAll(condid);
+}
+
+s32 sys_semaphore_create(sys_semaphore_t *semaid, const sys_semaphore_attribute_t *attr, s32 initial_value, s32 max_value)
+{
+	return lv2SemaphoreCreate(semaid, attr, initial_value, max_value);
+}
+
+s32 sys_semaphore_destroy(sys_semaphore_t semaid)
+{
+	return lv2SemaphoreDestroy(semaid);
+}
+
+s32 sys_semaphore_wait(sys_semaphore_t semaid, u64 timeout_usec)
+{
+	return lv2SemaphoreWait(semaid, timeout_usec);
+}
+
+s32 sys_semaphore_trywait(sys_semaphore_t semaid)
+{
+	return lv2SemaphoreTrywait(semaid);
+}
+
+s32 sys_semaphore_post(sys_semaphore_t semaid, s32 count)
+{
+	return lv2SemaphorePost(semaid, count);
+}

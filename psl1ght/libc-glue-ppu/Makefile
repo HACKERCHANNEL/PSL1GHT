@@ -7,7 +7,7 @@ BUILD		:=	build
 SOURCE		:=	source
 INCLUDE		:=	../include
 DATA		:=	data
-LIBS		:=	
+LIBS		:=	-lsysutil
 
 CFLAGS		:= -g -O2 -Wall
 

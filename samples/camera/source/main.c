@@ -1,4 +1,5 @@
-/* Now double buffered with animation.
+/* Sample libcamera with PlayStation Eye and Eyetoy support
+oopo's ps3libraries are needed for libjpg Eyetoy in Playstation 3 only support JPG format... IPU is away :P
  */ 
 
 #include <psl1ght/lv2.h>
@@ -19,12 +20,45 @@
 #include <psl1ght/lv2.h>
 #include <sysmodule/sysmodule.h>
 
+#include <jpeglib.h>
+#include <jerror.h>
+#include <setjmp.h>
+
+#include <stdarg.h>
+
+#include <arpa/inet.h>
+#include "sysutil/events.h"
+
+//Ugly error control for libjpg sample
+struct my_error_mgr {
+  struct jpeg_error_mgr pub;	/* "public" fields */
+
+  jmp_buf setjmp_buffer;	/* for return to caller */
+};
+
+typedef struct my_error_mgr * my_error_ptr;
+METHODDEF(void)
+my_error_exit (j_common_ptr cinfo)
+{
+  /* cinfo->err really points to a my_error_mgr struct, so coerce pointer */
+  my_error_ptr myerr = (my_error_ptr) cinfo->err;
+
+  /* Always display the message. */
+  /* We could postpone this until after returning, if we chose. */
+  (*cinfo->err->output_message) (cinfo);
+
+  /* Return control to the setjmp point */
+  longjmp(myerr->setjmp_buffer, 1);
+}
+
+
 gcmContextData *context; // Context to keep track of the RSX buffer.
 
 VideoResolution res; // Screen Resolution
 
 int currentBuffer = 0;
 u32 *buffer[2]; // The buffer we will be drawing into.
+
 
 void waitFlip() { // Block the PPU thread untill the previous flip operation has finished.
 	while(gcmGetFlipStatus() != 0) 
@@ -93,8 +127,10 @@ void fillFrame(u32 *buffer, u32 color) {
 	}
 
 }
-void unload_modules(){
+void appCleanup(){
 	SysUnloadModule(SYSMODULE_CAM);
+	sysUnregisterCallback(EVENT_SLOT0);
+	printf("Exiting for real.\n");
 }
 
 u32 YUV_to_RGB(int y,int u,int v)
@@ -134,13 +170,76 @@ void Convert422(u8* yuv, u32 *rgb1, u32 *rgb2)
 	*rgb2 = YUV_to_RGB(y2,u,v);
 }
 
+/*Added to add EyeToy support*/
+void decode_jpg(u8 *buf, s32 size)
+{
+	int i,j;
+	u8 *image;
+	u8 *ptr;
+	struct jpeg_decompress_struct cinfo;
+	struct my_error_mgr jerr;
+  
+	cinfo.err = jpeg_std_error(&jerr.pub);
+	jerr.pub.error_exit = my_error_exit;
+	if(setjmp(jerr.setjmp_buffer)){
+		/* If we get here, the JPEG code has signaled an error.
+		 * We need to clean up the JPEG object, close the input file, and return.
+		 */
+		jpeg_destroy_decompress(&cinfo);
+		return;
+	}
+	jpeg_create_decompress(&cinfo);
+	
+	jpeg_mem_src(&cinfo, buf,(int)size);
+
+	jpeg_read_header(&cinfo, TRUE);
+
+	jpeg_start_decompress(&cinfo);
+	 
+	/* allocate data and read the image as RGBRGBRGBRGB */
+	image = malloc(cinfo.output_width * cinfo.output_height * 3);
+	for(int i=0; i < cinfo.output_height; i++)
+	{
+		ptr = image + i * 3 * cinfo.output_width;
+		jpeg_read_scanlines(&cinfo, &ptr, 1);
+	}
+	
+	//put our decoded frame in our current framebuffer a
+	for(j=0;j<cinfo.output_height;j++){
+		for(i=0;i<cinfo.output_width;i++){
+			int r,g,b;
+			r = image[j * 3 * cinfo.output_width+i*3];
+			g = image[j * 3 * cinfo.output_width+i*3+1];
+			b = image[j * 3 * cinfo.output_width+i*3+2];
+			buffer[currentBuffer][j* res.width + i] = r<<16 | g<<8 | b;
+		}
+	}
+	
+	jpeg_finish_decompress(&cinfo);
+	jpeg_destroy_decompress(&cinfo);
+	free(image);
+}
+
+static void eventHandle(u64 status, u64 param, void * userdata) {
+    (void)param;
+    (void)userdata;
+	if(status == EVENT_REQUEST_EXITAPP){
+		printf("Quit game requested\n");
+		exit(0);
+	}else{
+		printf("Unhandled event: %08llX\n", (unsigned long long int)status);
+	}
+}
 
 s32 main(s32 argc, const char* argv[])
 {
 	PadInfo padinfo;
 	PadData paddata;
+
 	
-	atexit(unload_modules);
+	atexit(appCleanup);
+	
+	sysRegisterCallback(EVENT_SLOT0, eventHandle, NULL);
 	
 	int i, j, ret;
 	int running = 1, cameraSetup = 0;
@@ -148,7 +247,6 @@ s32 main(s32 argc, const char* argv[])
 	mem_container_t container;
 	
 	ret = lv2MemContinerCreate(&container, 0x200000);
-	
 	printf("lv2MemContinerCreate() returned %d\n", ret);
 	CameraType type;
 	CameraInfoEx cameraInfo;
@@ -180,47 +278,82 @@ s32 main(s32 argc, const char* argv[])
 		fillFrame(buffer[currentBuffer], 0x00FFFFFF); // Draw into the unused buffer
 		
 		if(!cameraSetup){
+			
 			cameraGetType(0, &type);
 			if (type == CAM_TYPE_PLAYSTATION_EYE){
 				cameraSetup = 1;
-				printf("Found me an eye, arrr!\n");
 				cameraInfo.format=CAM_FORM_YUV422;
 				cameraInfo.framerate=30;
 				cameraInfo.resolution=CAM_RESO_VGA;
 				cameraInfo.info_ver=0x101;
 				cameraInfo.container=container;
-				cameraOpenEx(0, &cameraInfo);
-				printf("Video dimensions: %dx%d\n", cameraInfo.width, cameraInfo.height);
-				printf("Buffer at %08X\n", cameraInfo.buffer);
+				ret = cameraOpenEx(0, &cameraInfo);
+				if (ret == CAMERA_ERRO_DOUBLE_OPEN){
+					cameraClose(0);
+					cameraSetup = 0;
+				}else if(ret == CAMERA_ERRO_NO_DEVICE_FOUND){
+				}else{
+					printf("Found me an eye, arrr!\n");
+					printf("cameraOpenEx returned %08X\n", ret);
+					printf("Video dimensions: %dx%d\n", cameraInfo.width, cameraInfo.height);
+					printf("Buffer at %08X\n", cameraInfo.buffer);
+				}
+			}else if(type==CAM_TYPE_EYETOY){
+					
+				cameraSetup = 1;
+				cameraInfo.format=CAM_FORM_JPG; //ONLY JPG FOR EYETOY
+				cameraInfo.framerate=30;
+				cameraInfo.resolution=CAM_RESO_VGA;
+				cameraInfo.info_ver=0x101;
+				cameraInfo.container=container;
+				ret = cameraOpenEx(0, &cameraInfo);
+				if (ret == CAMERA_ERRO_DOUBLE_OPEN){
+					cameraClose(0);
+					cameraSetup = 0;
+				}else if(ret == CAMERA_ERRO_NO_DEVICE_FOUND){
+				}else{
+					printf("Found me an EyeToy :P, arrr!\n");
+					printf("cameraOpenEx returned %08X\n", ret);
+					printf("Video dimensions: %dx%d\n", cameraInfo.width, cameraInfo.height);
+					printf("Buffer at %08X\n", cameraInfo.buffer);
+				}
 			}
-		}else{
+		}
+		else
+		{
 			s32 readcount, frame;
 			ret = cameraRead(0, &frame, &readcount);
-			if(ret == CAMERA_ERRO_NO_DEVICE_FOUND) {
+			if(ret == CAMERA_ERRO_NO_DEVICE_FOUND){
 				cameraSetup = 0;
-			}else if(ret == CAMERA_ERRO_NEED_START) {      
+			}else if(ret == CAMERA_ERRO_NEED_START){      
 				cameraReset(0);
 				cameraStart(0);
-			}else if (ret == 0){
-				//printf("Ok lets try to print this image.\n");
+			}else if(ret == CAMERA_ERRO_NEED_OPEN || ret == CAMERA_ERRO_NO_DEVICE_FOUND){      
+				cameraSetup = 0;
+			}else if (ret == 0 && readcount!=0 ){
 				u8 * buf = (u8*)(u64)cameraInfo.buffer;
-				//printf("Buffer at %p\n", buf);
-				for(i=0;i<cameraInfo.height; i++){
-					for(j=0;j<cameraInfo.width; j += 2){
-						u32 pixel1, pixel2;
-						Convert422(buf, &pixel1, &pixel2);
-						buf += 4;
-						buffer[currentBuffer][i* res.width + j] = pixel1;
-						buffer[currentBuffer][(i)* res.width + j + 1] = pixel2;
-						//printf("Pixel x: %d, y: %d = 0x%08X\n", i,j,pixel1);
-						//printf("Pixel x: %d, y: %d = 0x%08X\n", i+1,j,pixel2);
+				if(type == CAM_TYPE_PLAYSTATION_EYE){
+					for(i=0;i<cameraInfo.height; i++){
+						for(j=0;j<cameraInfo.width; j += 2){
+							u32 pixel1, pixel2;
+							Convert422(buf, &pixel1, &pixel2);
+							buf += 4;
+							buffer[currentBuffer][i* res.width + j] = pixel1;
+							buffer[currentBuffer][(i)* res.width + j + 1] = pixel2;
+						}
 					}
+				}else if(type==CAM_TYPE_EYETOY){
+						//oopo's libjpg making the job
+						decode_jpg(buf,readcount);
 				}
+			}else if(ret!=0){
+				printf("Unhandled cameraRead return value: %08X\n", ret);
 			}
 		}
 		
 		flip(currentBuffer); // Flip buffer onto screen
 		currentBuffer = !currentBuffer;
+		sysCheckCallback();
 	}
 	
 	cameraStop(0);
@@ -229,7 +362,5 @@ s32 main(s32 argc, const char* argv[])
 	cameraEnd();
   
 	lv2MemContinerDestroy(container);
-	printf("Exiting.\n");
 	return 0;
 }
-
