@@ -1,6 +1,8 @@
 /***
  * These are functions that are provided by libgcm_sys.sprx, which is the only
- * part of libgcm that we can legally use.
+ * part of libgcm that we are leagally allowed to use.
+ *
+ * TODO: Fill out the rest of theses based on psl1ght/sprx/libgcm_sys/exports.h
  */
 
 #pragma once
@@ -10,6 +12,7 @@
 
 EXTERN_BEGIN
 
+// Theres are all ment to be pointers.
 typedef struct{
 	u32 begin;
 	u32 end;

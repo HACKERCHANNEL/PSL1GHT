@@ -44,14 +44,14 @@ int main(int argc, const char* argv[])
 	printf("%08x\n", sysSpuRawImageLoad(spu, &image));
 
 	printf("Running SPU...\n");
-	lv2SpuRawWriteProblemStorage(spu, 0x401C, 1);
+	lv2SpuRawWriteProblemStorage(spu, SPU_RunCntl, 1);
 
 	printf("Waiting for SPU to return...\n");
-	while (!(lv2SpuRawReadProblemStorage(spu, 0x4014) & 1)) {
+	while (!(lv2SpuRawReadProblemStorage(spu, SPU_MBox_Status) & 1)) {
 		asm volatile("eieio" ::);
 	}
 
-	printf("SPU mailbox return value: %08x\n", lv2SpuRawReadProblemStorage(spu, 0x4004));
+	printf("SPU mailbox return value: %08x\n", lv2SpuRawReadProblemStorage(spu, SPU_Out_MBox));
 
 	printf("Destroying SPU... ");
 	printf("%08x\n", lv2SpuRawDestroy(spu));

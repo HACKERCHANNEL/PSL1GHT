@@ -10,11 +10,10 @@ BUILD		:=	build
 SOURCE		:=	source
 INCLUDE		:=	include
 DATA		:=	data
-LIBS		:=	-lgcm_sys -lreality -lsysutil -lio -lpng -lz -lm
+LIBS		:=	-lgcm_sys -lreality -lsysutil -lio -ljpgdec -lsysmodule
 
-
-TITLE		:=	Snake
-APPID		:=	Snake00003
+TITLE		:=	jpgtest - PSL1GHT
+APPID		:=	TEST00003
 CONTENTID	:=	UP0001-$(APPID)_00-0000000000000000
 
 CFLAGS		+= -g -O2 -Wall --std=gnu99
@@ -41,7 +40,6 @@ export BINFILES	:=	$(BINFILES:.bin=.bin.h)
 
 export INCLUDES	:=	$(foreach dir,$(INCLUDE),-I$(CURDIR)/$(dir)) \
 					-I$(CURDIR)/$(BUILD)
-export LIBPATHS :=      $(foreach dir,$(LIBDIRS),-L$(CURDIR)/$(dir))
 
 .PHONY: $(BUILD) clean
 

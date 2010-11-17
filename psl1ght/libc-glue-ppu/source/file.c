@@ -7,10 +7,21 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
+#include <utime.h>
 
 #include <sys/socket.h>
 
-#define DEFAULT_FILE_MODE (S_IRWXU | S_IRWXG | S_IRWXO)
+#define UMASK(mode) ((mode) & ~glue_umask)
+static mode_t glue_umask = 0;
+mode_t umask(mode_t cmask)
+{
+	mode_t mode = glue_umask;
+	glue_umask = cmask;
+	return mode;
+}
+
+#define DEFAULT_FILE_MODE UMASK(S_IRWXU | S_IRWXG | S_IRWXO)
 int open(const char* path, int oflag, ...)
 {
 	Lv2FsFile fd;
@@ -37,6 +48,21 @@ int open(const char* path, int oflag, ...)
 		lv2FsChmod(path, DEFAULT_FILE_MODE);
 
 	return fd;
+}
+
+int fsync(int fd)
+{
+	return lv2Errno(lv2FsFsync(fd));
+}
+
+int truncate(const char* path, off_t length)
+{
+	return lv2Errno(lv2FsTruncate(path, length));
+}
+
+int ftruncate(int fd, off_t length)
+{
+	return lv2Errno(lv2FsFtruncate(fd, length));
 }
 
 int net_close(int fd);
@@ -90,13 +116,55 @@ ssize_t read(int fd, void* buffer, size_t size)
 	return bytes;
 }
 
-int fstat(int fd, struct stat* st)
+static void convertLv2Stat(struct stat* st, Lv2FsStat* stat)
 {
-	errno = ENOSYS;
-	return -1;
+	memset(st, 0, sizeof(struct stat));
+	st->st_mode = stat->st_mode;
+	st->st_uid = stat->st_uid;
+	st->st_gid = stat->st_gid;
+	st->st_atime = stat->st_atime;
+	st->st_mtime = stat->st_mtime;
+	st->st_ctime = stat->st_ctime;
+	st->st_size = stat->st_size;
+	st->st_blksize = stat->st_blksize;
+}
+
+int fstat(int fd, struct stat* buf)
+{
+	Lv2FsStat stat;
+	int ret = lv2FsFstat(fd, &stat);
+	if (!ret && buf)
+		convertLv2Stat(buf, &stat);
+	return lv2Errno(ret);
 }
 
 int stat(const char* path, struct stat* buf)
+{
+	Lv2FsStat stat;
+	int ret = lv2FsStat(path, &stat);
+	if (!ret && buf)
+		convertLv2Stat(buf, &stat);
+	return lv2Errno(ret);
+}
+
+int mkdir(const char* path, mode_t mode)
+{
+	return lv2Errno(lv2FsMkdir(path, UMASK(mode)));
+}
+
+int rmdir(const char* path)
+{
+	return lv2Errno(lv2FsRmdir(path));
+}
+
+/* Newlib already implements this? How?
+int rename(const char* old, const char* new)
+{
+	return lv2Errno(lv2FsRename(old, new));
+}
+*/
+
+int link(const char* old, const char* new)
 {
 	errno = ENOSYS;
 	return -1;
@@ -111,6 +179,11 @@ off_t lseek(int fd, off_t offset, int whence)
 	return position;
 }
 
+int utime(const char* path, const struct utimbuf* times)
+{
+	return lv2Errno(lv2FsUtime(path, (const Lv2FsUtimbuf*)times));
+}
+
 int isatty(int fd)
 {
 	if (fd == stdout->_file || fd == stdin->_file || fd == stderr->_file)
@@ -123,4 +196,3 @@ int chmod(const char* path, mode_t mode)
 {
 	return lv2Errno(lv2FsChmod(path, mode));
 }
-

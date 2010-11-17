@@ -7,12 +7,7 @@
 
 s32 sys_ppu_thread_create(sys_ppu_thread_t * threadid, void (*entry) (u64 arg), u64 arg, s32 priority, u64 stacksize, u64 flags, char * threadname)
 {
-	/* This translates from the 64bit opd entry to the non standard 32bit opd entry */
-	opd64 * opd = (opd64*)entry;
-	opd32 newopd;
-	newopd.func = (u64)opd->func;
-	newopd.rtoc = (u64)opd->rtoc;
-	return sys_ppu_thread_create_ex(threadid, &newopd, arg, priority, stacksize, flags, threadname);
+	return sys_ppu_thread_create_ex(threadid, OPD32(entry), arg, priority, stacksize, flags, threadname);
 }
 void sys_ppu_thread_yield()
 {

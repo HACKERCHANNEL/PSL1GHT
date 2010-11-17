@@ -36,84 +36,79 @@ typedef struct PadData
 		u16 button[PAD_MAX_CODES];
 		struct {
 			u16 zeroes;
-			u16					:  8; 	/* reserved */
-			u16 seven 			:  4;	/* always 0x7 */
-			u16 halflen 		:  4;	/* len/2 */
-			
+			unsigned int				:  8; 		/* reserved */
+			unsigned int seven 			:  4;		/* always 0x7 */
+			unsigned int halflen 		:  4;		/* len/2 */
+			unsigned int				:  8;		/* reserved */
 			/* Button information */
 			/* 0: UP, 1: DOWN     */
-			u16 				:  8;	/* reserved */
-			u16 BTN_LEFT 		:  1;
-			u16 BTN_DOWN 		:  1;
-			u16 BTN_RIGHT 		:  1;
-			u16 BTN_UP 			:  1;
-			u16 BTN_START 		:  1;
-			u16 BTN_R3 			:  1;
-			u16 BTN_L3 			:  1;
-			u16 BTN_SELECT		:  1;
+			unsigned int BTN_LEFT 		:  1;
+			unsigned int BTN_DOWN 		:  1;
+			unsigned int BTN_RIGHT 		:  1;
+			unsigned int BTN_UP 		:  1;
+			unsigned int BTN_START 		:  1;
+			unsigned int BTN_R3 		:  1;
+			unsigned int BTN_L3 		:  1;
+			unsigned int BTN_SELECT		:  1;
 			
-			u16 				:  8;	/* reserved */
-			u16 BTN_SQUARE 		:  1;
-			u16 BTN_CROSS 		:  1;
-			u16 BTN_CIRCLE 		:  1;
-			u16 BTN_TRIANGLE	:  1;
-			u16 BTN_R1 			:  1;
-			u16 BTN_L1 			:  1;
-			u16 BTN_R2 			:  1;
-			u16 BTN_L2			:  1;
+			unsigned int				:  8;		/* reserved */
+			unsigned int BTN_SQUARE 	:  1;
+			unsigned int BTN_CROSS 		:  1;
+			unsigned int BTN_CIRCLE 	:  1;
+			unsigned int BTN_TRIANGLE	:  1;
+			unsigned int BTN_R1 		:  1;
+			unsigned int BTN_L1 		:  1;
+			unsigned int BTN_R2 		:  1;
+			unsigned int BTN_L2			:  1;
 			
 			/* Analog nub information */
 			/* 0x0000 - 0x00FF        */
-			u16 ANA_R_H; /* Right X/Horizontal */
-			u16 ANA_R_V; /* Right Y/Vertical */
-			u16 ANA_L_H; /* Left X/Horizontal */
-			u16 ANA_L_V; /* Left Y/Vertical */
+			unsigned int ANA_R_H		: 16;
+			unsigned int ANA_R_V		: 16;
+			unsigned int ANA_L_H		: 16;
+			unsigned int ANA_L_V		: 16;
 			
 			/* Pressure-sensitive information */
 			/* 0x0000 - 0x00FF                */
-			u16 PRE_RIGHT;
-			u16 PRE_LEFT;
-			u16 PRE_UP;
-			u16 PRE_DOWN;
-			u16 PRE_TRIANGLE;
-			u16 PRE_CIRCLE;
-			u16 PRE_CROSS;
-			u16 PRE_SQUARE;
-			u16 PRE_L1;
-			u16 PRE_R1;
-			u16 PRE_L2;
-			u16 PRE_R2;
+			unsigned int PRE_RIGHT		: 16;
+			unsigned int PRE_LEFT		: 16;
+			unsigned int PRE_UP			: 16;
+			unsigned int PRE_DOWN		: 16;
+			unsigned int PRE_TRIANGLE	: 16;
+			unsigned int PRE_CIRCLE		: 16;
+			unsigned int PRE_CROSS		: 16;
+			unsigned int PRE_SQUARE		: 16;
+			unsigned int PRE_L1			: 16;
+			unsigned int PRE_R1			: 16;
+			unsigned int PRE_L2			: 16;
+			unsigned int PRE_R2			: 16;
 			
 			/* Sensor information */
 			/* 0x0000 - 0x03FF    */
-			u16 SENSOR_X;
-			u16 SENSOR_Y;
-			u16 SENSOR_Z;
-			u16 SENSOR_G;
-			u8 reserved[80];	/* reserved */
+			unsigned int SENSOR_X		: 16;
+			unsigned int SENSOR_Y		: 16;
+			unsigned int SENSOR_Z		: 16;
+			unsigned int SENSOR_G		: 16;
+			u8 reserved[80];		/* reserved */
 		};
 	};
 } PadData;
 
-typedef struct PadCapabilityInfoBitFields
-{
-	union {
-		u32 info;	/* 32bit info */
-		struct {
-		u32 reserved		: 27;	/* reserved MSB */
-		u32 has_vibrate		:  1;	/* controller has inbuilt vibration motor Bit4 */
-		u32 has_hps			:  1;	/* controller has high precision stick Bit3 */
-		u32 has_sensors		:  1;	/* controller has sensors, e.g. sixaxis, X,Y,Z,G Bit2 */
-		u32 has_pressure	:  1;	/* controller has pressure-sensitive buttons Bit1 */
-		u32 ps3spec			:  1;	/* controller meets ps3 specifications Bit0 LSB */
-		};
-	};
-}PadCapabilityInfoBitFields;
-
 #define PAD_CAPABILITY_INFO_MAX 32
 typedef struct PadCapabilityInfo
 {
-	PadCapabilityInfoBitFields info[PAD_CAPABILITY_INFO_MAX];
+	union {
+		u32 info[PAD_CAPABILITY_INFO_MAX];
+		struct {
+			unsigned int 				: 27;		/* reserved */
+			unsigned int has_vibrate	:  1;		/* controller has inbuilt vibration motor */
+			unsigned int has_hps		:  1;		/* controller has high precision stick */
+			unsigned int has_sensors	:  1;		/* controller has sensors, e.g. sixaxis, X,Y,Z,G */
+			unsigned int has_pressure	:  1;		/* controller has pressure-sensitive buttons */
+			unsigned int ps3spec		:  1;		/* controller meets ps3 specifications */
+			u32 reserved[PAD_CAPABILITY_INFO_MAX-1];
+		};
+	};
 } PadCapabilityInfo;
 
 #define PAD_ACTUATOR_MAX	(2)

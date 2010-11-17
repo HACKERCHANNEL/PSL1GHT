@@ -1,4 +1,5 @@
 #include <lv2/process.h>
+#include <psl1ght/lv2/filesystem.h>
 
 #include <stdio.h>
 #include <malloc.h>
@@ -10,8 +11,13 @@
 #include <netinet/in.h>
 
 #include <zlib.h>
+#include <zip.h>
+#include <zipint.h>
 
-#define VERSION "v0.1"
+//#include <dirent.h>
+#define DT_DIR 1
+
+#define PS3LOAD_VERSION "v0.2"
 #define PORT 4299
 #define MAX_ARG_COUNT 0x100
 
@@ -23,11 +29,43 @@
 }
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define SELF_PATH "/dev_hdd0/tmp/ps3load.self"
+#define ZIP_PATH "/dev_hdd0/tmp/ps3load"
+#define SELF_PATH ZIP_PATH ".self"
+
+void DeleteDirectory(const char* path)
+{
+	int dfd;
+	u64 read;
+	Lv2FsDirent dir;
+	if (lv2FsOpenDir(path, &dfd))
+		return;
+	while (!lv2FsReadDir(dfd, &dir, &read)) {
+		char newpath[0x440];
+		if (!read)
+			break;
+		if (!strcmp(dir.d_name, ".") || !strcmp(dir.d_name, ".."))
+			continue;
+
+		strcpy(newpath, path);
+		strcat(newpath, "/");
+		strcat(newpath, dir.d_name);
+
+		if (dir.d_type == DT_DIR) {
+			DeleteDirectory(newpath);
+			rmdir(newpath);
+		} else {
+			remove(newpath);
+		}
+	}
+	lv2FsCloseDir(dfd);
+}
 
 int main(int argc, const char* argv[], const char* envp[])
 {
-	printf("PS3Load " VERSION "\n");
+	printf("PS3Load " PS3LOAD_VERSION "\n");
+	
+	mkdir(ZIP_PATH, 0777);
+	DeleteDirectory(ZIP_PATH);
 
 	int s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	ERROR(s, "Error creating socket()");
@@ -94,7 +132,7 @@ reloop:
 
 		printf("Decompressing...\n");
 
-		if (filesize != uncompressed) {
+		if (uncompressed) {
 			u8* compressed = data;
 			uLongf final = uncompressed;
 			data = (u8*)malloc(final);
@@ -105,7 +143,8 @@ reloop:
 			if (uncompressed != final)
 				continue;
 			uncompressed = final;
-		}
+		} else
+			uncompressed = filesize;
 
 		printf("Launching...\n");
 
@@ -120,6 +159,70 @@ reloop:
 		}
 
 		close(fd);
+
+		free(data);
+
+		char bootpath[MAXPATHLEN];
+		strcpy(bootpath, SELF_PATH);
+
+		struct zip* archive = zip_open(SELF_PATH, ZIP_CHECKCONS, NULL);
+		int files = zip_get_num_files(archive);
+		if (files > 0) {
+			strcpy(bootpath, "");
+
+			for (int i = 0; i < files; i++) {
+				char path[MAXPATHLEN];
+				strcpy(path, ZIP_PATH);
+				const char* filename = zip_get_name(archive, i, 0);
+				if (!filename)
+					continue;
+				if (filename[0] != '/')
+					strcat(path, "/");
+				strcat(path, filename);
+
+				#define ENDS_WITH(needle) \
+					(strlen(filename) >= strlen(needle) && !strcasecmp(filename + strlen(filename) - strlen(needle), needle))
+
+				if (ENDS_WITH("EBOOT.BIN") || ENDS_WITH(".self"))
+					strcpy(bootpath, path);
+
+				if (filename[strlen(filename) - 1] != '/') {
+					struct zip_stat st;
+					if (zip_stat_index(archive, i, 0, &st)) {
+						printf("Unable to access file %s in zip.\n", filename);
+						continue;
+					}
+					struct zip_file* zfd = zip_fopen_index(archive, i, 0);
+					if (!zfd) {
+						printf("Unable to open file %s in zip.\n", filename);
+						continue;
+					}
+
+					int tfd = open(path, O_CREAT | O_TRUNC | O_WRONLY);
+					ERROR(tfd, "Error opening temporary file.");
+
+					pos = 0;
+					u8* buffer = malloc(0x1000);
+					while (pos < st.size) {
+						count = MIN(0x1000, st.size - pos);
+						if (zip_fread(zfd, buffer, count) != count)
+							ERROR(1, "Error reading from zip.");
+						write(tfd, buffer, count);
+						pos += count;
+					}
+					free(buffer);
+
+					zip_fclose(zfd);
+					close(tfd);
+				} else
+					mkdir(path, 0777);
+			}
+		}
+		if (archive)
+			zip_close(archive);
+
+		if (!strlen(bootpath))
+			continue;
 
 		char* launchenvp[2];
 		char* launchargv[MAX_ARG_COUNT];
@@ -141,7 +244,7 @@ reloop:
 			i++;
 		}
 
-		sysProcessExitSpawn2(SELF_PATH, (const char**)launchargv, (const char**)launchenvp, NULL, 0, 1001, SYS_PROCESS_SPAWN_STACK_SIZE_1M);
+		sysProcessExitSpawn2(bootpath, (const char**)launchargv, (const char**)launchenvp, NULL, 0, 1001, SYS_PROCESS_SPAWN_STACK_SIZE_1M);
 	}
 
 	return 0;

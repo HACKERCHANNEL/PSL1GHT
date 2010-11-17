@@ -18,8 +18,5 @@ int main(int argc, const char* argv[])
 	fprintf(stdout, "0x%016llx: %s\n", buffer, buffer);
 	free(buffer);
 
-	// Until exit() is implemented (liblv2's sys_process_exit),
-	// this actually returns to crt0 and causes an instruction exception.
-	// Conveniently, the exception throws us back to XMB :)
 	return 0;
 }

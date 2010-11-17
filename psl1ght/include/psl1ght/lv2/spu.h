@@ -57,6 +57,24 @@ LV2_SYSCALL lv2SpuThreadRecoverPageFault(u32 thread) { return Lv2Syscall1(198, t
 #define LV2_SPU_RAW_LOCAL_OFFSET	0x00000000ULL
 #define LV2_SPU_RAW_PROBLEM_OFFSET	0x00040000ULL
 
+// Problem State Registers
+#define MFC_LSA						0x00003004
+#define MFC_EAH						0x00003008
+#define MFC_EAL						0x0000300C
+#define MFC_Size_Tag				0x00003010
+#define MFC_Class_CMD				0x00003014
+#define MFC_CMDStatus				0x00003014
+#define MFC_QStatus					0x00003104
+#define Prxy_QueryType				0x00003204
+#define Prxy_QueryMask				0x0000321C
+#define Prxy_TagStatus				0x0000322C
+#define SPU_Out_MBox				0x00004004
+#define SPU_In_MBox					0x0000400C
+#define SPU_MBox_Status				0x00004014
+#define SPU_RunCntl					0x0000401C
+#define SPU_Status					0x00004024
+#define SPU_NPC						0x00004034
+
 #define LV2_SPU_RAW_GET_BASE_OFFSET(spu) \
 	(LV2_SPU_RAW_BASE + LV2_SPU_RAW_OFFSET * (spu))
 

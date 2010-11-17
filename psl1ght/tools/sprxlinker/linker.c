@@ -10,9 +10,11 @@
 #ifdef __BIG_ENDIAN__
 #define BE16(num) (num)
 #define BE32(num) (num)
+#define BE64(num) (num)
 #else
-#define BE16(num) (((num << 8) | ((num >> 8) & 0xFF)) & 0xFFFF)
-#define BE32(num) ((BE16(num) << 16) | BE16(num >> 16))
+#define BE16(num) ((uint16_t)((uint16_t)(num << 8) | (uint8_t)((num >> 8))))
+#define BE32(num) ((uint32_t)(((uint32_t)BE16(num) << 16) | BE16(num >> 16)))
+#define BE64(num) ((uint64_t)((uint64_t)BE32(num) << 32) | BE32(num >> 32))
 #endif
 
 typedef struct
@@ -30,6 +32,19 @@ typedef struct
 	uint32_t zero5;
 	uint32_t zero6;
 } __attribute__((__packed__)) Stub;
+
+typedef struct
+{
+	uint32_t address;
+	uint32_t rtoc;
+} __attribute__((__packed__)) Opd32;
+
+typedef struct
+{
+	uint64_t address;
+	uint64_t rtoc;
+	uint64_t reserved;
+} __attribute__((__packed__)) Opd64;
 
 unsigned char prx_magic[] = {
 	0x00, 0x00, 0x00, 0x28, // Size
@@ -85,7 +100,7 @@ int main(int argc, const char* argv[])
 	Elf_Data* stubdata = elf_getdata(stubsection, NULL);
 	Elf64_Shdr* stubshdr = elf64_getshdr(stubsection);
 	Stub* stubbase = (Stub*)stubdata->d_buf;
-	size_t stubcount = stubdata->d_size / sizeof(Stub);
+	size_t stubcount = stubshdr->sh_size / sizeof(Stub);
 	Elf_Scn* fnidsection = GetSection(elf, ".rodata.sceFNID");
 	Elf64_Shdr* fnidshdr = elf64_getshdr(fnidsection);
 	for (Stub* stub = stubbase; stub < stubbase + stubcount; stub++) {
@@ -102,11 +117,27 @@ int main(int argc, const char* argv[])
 		if (BE16(stub->imports) != fnidcount) {
 			lseek(fd, stubshdr->sh_offset + (stub - stubbase) * sizeof(Stub) + offsetof(Stub, imports), SEEK_SET);
 			fnidcount = BE16(fnidcount);
-			if(write(fd, &fnidcount, sizeof(fnidcount)) == -1)
-			{
-				printf("Error occured during write in linker.c\n");
-			}
+			if (write(fd, &fnidcount, sizeof(fnidcount)) != sizeof(fnidcount))
+				perror("sprxlinker");
 		}
+	}
+	
+	Elf_Scn* opdsection = GetSection(elf, ".opd");
+	Elf_Data* opddata = elf_getdata(opdsection, NULL);
+	Elf64_Shdr* opdshdr = elf64_getshdr(opdsection);
+	Opd64* opdbase = (Opd64*)opddata->d_buf;
+	size_t opdcount = opdshdr->sh_size / sizeof(Opd64);
+
+	Elf_Scn* opd32section = GetSection(elf, ".opd32");
+	Elf64_Shdr* opd32shdr = elf64_getshdr(opd32section);
+
+	for (Opd64* opd = opdbase; opd < opdbase + opdcount; opd++) {
+		Opd32 opd32;
+		opd32.address = BE32(BE64(opd->address));
+		opd32.rtoc = BE32(BE64(opd->rtoc));
+		lseek(fd, opd32shdr->sh_offset + (opd - opdbase) * sizeof(opd32), SEEK_SET);
+		if (write(fd, &opd32, sizeof(opd32)) != sizeof(opd32))
+			perror("sprxlinker");
 	}
 
 	elf_end(elf);

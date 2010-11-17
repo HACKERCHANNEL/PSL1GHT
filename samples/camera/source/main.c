@@ -1,5 +1,5 @@
 /* Sample libcamera with PlayStation Eye and Eyetoy support
-oopo's ps3libraries are needed for libjpg Eyetoy in Playstation 3 only support JPG format... IPU is away :P
+libjpgdec is used by Eyetoy in Playstation 3 only support JPG format... IPU is away :P
  */ 
 
 #include <psl1ght/lv2.h>
@@ -19,38 +19,12 @@ oopo's ps3libraries are needed for libjpg Eyetoy in Playstation 3 only support J
 
 #include <psl1ght/lv2.h>
 #include <sysmodule/sysmodule.h>
-
-#include <jpeglib.h>
-#include <jerror.h>
-#include <setjmp.h>
+#include <jpgdec/jpgdec.h>
 
 #include <stdarg.h>
 
 #include <arpa/inet.h>
 #include "sysutil/events.h"
-
-//Ugly error control for libjpg sample
-struct my_error_mgr {
-  struct jpeg_error_mgr pub;	/* "public" fields */
-
-  jmp_buf setjmp_buffer;	/* for return to caller */
-};
-
-typedef struct my_error_mgr * my_error_ptr;
-METHODDEF(void)
-my_error_exit (j_common_ptr cinfo)
-{
-  /* cinfo->err really points to a my_error_mgr struct, so coerce pointer */
-  my_error_ptr myerr = (my_error_ptr) cinfo->err;
-
-  /* Always display the message. */
-  /* We could postpone this until after returning, if we chose. */
-  (*cinfo->err->output_message) (cinfo);
-
-  /* Return control to the setjmp point */
-  longjmp(myerr->setjmp_buffer, 1);
-}
-
 
 gcmContextData *context; // Context to keep track of the RSX buffer.
 
@@ -95,6 +69,7 @@ void init_screen() {
 	vconfig.resolution = state.displayMode.resolution;
 	vconfig.format = VIDEO_BUFFER_FORMAT_XRGB;
 	vconfig.pitch = res.width * 4;
+	vconfig.aspect=state.displayMode.aspect;
 
 	assert(videoConfigure(0, &vconfig, NULL, 0) == 0);
 	assert(videoGetState(0, 0, &state) == 0); 
@@ -128,6 +103,7 @@ void fillFrame(u32 *buffer, u32 color) {
 
 }
 void appCleanup(){
+	SysUnloadModule(SYSMODULE_JPGDEC);
 	SysUnloadModule(SYSMODULE_CAM);
 	sysUnregisterCallback(EVENT_SLOT0);
 	printf("Exiting for real.\n");
@@ -170,54 +146,110 @@ void Convert422(u8* yuv, u32 *rgb1, u32 *rgb2)
 	*rgb2 = YUV_to_RGB(y2,u,v);
 }
 
+static void *jpg_malloc(u32 size, void * a) {
+
+	return malloc(size);
+}
+
+
+static int jpg_free(void *ptr, void * a) {
+	
+	free(ptr);
+	
+	return 0;
+} 
+
 /*Added to add EyeToy support*/
-void decode_jpg(u8 *buf, s32 size)
+int decode_jpg(u8 *buf, s32 size)
 {
-	int i,j;
-	u8 *image;
-	u8 *ptr;
-	struct jpeg_decompress_struct cinfo;
-	struct my_error_mgr jerr;
-  
-	cinfo.err = jpeg_std_error(&jerr.pub);
-	jerr.pub.error_exit = my_error_exit;
-	if(setjmp(jerr.setjmp_buffer)){
-		/* If we get here, the JPEG code has signaled an error.
-		 * We need to clean up the JPEG object, close the input file, and return.
-		 */
-		jpeg_destroy_decompress(&cinfo);
-		return;
-	}
-	jpeg_create_decompress(&cinfo);
 	
-	jpeg_mem_src(&cinfo, buf,(int)size);
+	int ret=-1;
 
-	jpeg_read_header(&cinfo, TRUE);
+	int mHandle;
+	int sHandle;
 
-	jpeg_start_decompress(&cinfo);
-	 
-	/* allocate data and read the image as RGBRGBRGBRGB */
-	image = malloc(cinfo.output_width * cinfo.output_height * 3);
-	for(int i=0; i < cinfo.output_height; i++)
-	{
-		ptr = image + i * 3 * cinfo.output_width;
-		jpeg_read_scanlines(&cinfo, &ptr, 1);
-	}
+	JpgDecThreadInParam InThdParam;
+	JpgDecThreadOutParam OutThdParam;
+
+	JpgDecInParam inParam;
+	JpgDecOutParam outParam;
 	
-	//put our decoded frame in our current framebuffer a
-	for(j=0;j<cinfo.output_height;j++){
-		for(i=0;i<cinfo.output_width;i++){
-			int r,g,b;
-			r = image[j * 3 * cinfo.output_width+i*3];
-			g = image[j * 3 * cinfo.output_width+i*3+1];
-			b = image[j * 3 * cinfo.output_width+i*3+2];
-			buffer[currentBuffer][j* res.width + i] = r<<16 | g<<8 | b;
+	JpgDecSrc src; 
+	uint32_t space_allocated;
+
+	JpgDecInfo DecInfo;
+	
+	uint64_t bytes_per_line;
+	JpgDecDataInfo DecDataInfo;
+
+	InThdParam.enable   = 0;
+	InThdParam.ppu_prio = 512;
+	InThdParam.spu_prio = 200;
+	InThdParam.addr_malloc_func  = (u32)(u64) OPD32(jpg_malloc); // (see sysmodule.h)
+	InThdParam.addr_malloc_arg   = 0; // no args: if you want one uses get32_addr() to get the 32 bit address (see sysmodule.h)
+	InThdParam.addr_free_func    = (u32)(u64) OPD32(jpg_free);  // (see sysmodule.h)
+	InThdParam.addr_free_arg    =  0; // no args  if you want one uses get32_addr() to get the 32 bit address (see sysmodule.h)
+
+
+	ret= JpgDecCreate(&mHandle, &InThdParam, &OutThdParam);
+
+
+	if(ret == 0) {
+		
+		memset(&src, 0, sizeof(JpgDecSrc));
+			
+		src.stream_select = JPGDEC_BUFFER;
+		src.addr_stream_ptr  = (u32)(u64) buf;
+		src.stream_size    = size;
+		src.enable  = JPGDEC_DISABLE;
+			
+		ret= JpgDecOpen(mHandle, &sHandle, &src, &space_allocated);
+			
+		if(ret == 0) {
+			
+			ret = JpgDecReadHeader(mHandle, sHandle, &DecInfo);
+			
+			if(ret==0 && DecInfo.color_space==0) ret=-1; // unsupported color
+
+			if(ret == 0) {	
+		
+				inParam.addr_cmd_ptr = 0;
+				inParam.downscale	 = 1;
+				inParam.quality		 = JPGDEC_LOW_QUALITY; // fast
+				inParam.mode         = JPGDEC_TOP_TO_BOTTOM;
+				inParam.color_space  = JPGDEC_ARGB;
+				inParam.color_alpha  = 0xFF;
+
+				ret = JpgDecSetParameter(mHandle, sHandle, &inParam, &outParam);
+				}
+				
+			if(ret == 0) {
+					
+					// this section is the copy buffer area
+
+					bytes_per_line = (uint64_t)  res.width*4;
+
+					void * bmp_out= buffer[currentBuffer];
+
+					//memset(bmp_out, 0, bytes_per_line * outParam.height);
+						
+					ret = JpgDecDecodeData(mHandle, sHandle, bmp_out, &bytes_per_line, &DecDataInfo);
+
+					if((ret == 0) && (DecDataInfo.status == 0)){
+							
+							ret=0; // ok :)
+					}
+				}
+				
+			JpgDecClose(mHandle, sHandle);
+			}
+
+		
+			JpgDecDestroy(mHandle);
+			
 		}
-	}
-	
-	jpeg_finish_decompress(&cinfo);
-	jpeg_destroy_decompress(&cinfo);
-	free(image);
+
+return ret;
 }
 
 static void eventHandle(u64 status, u64 param, void * userdata) {
@@ -236,6 +268,8 @@ s32 main(s32 argc, const char* argv[])
 	PadInfo padinfo;
 	PadData paddata;
 
+	SysLoadModule(SYSMODULE_CAM);
+	SysLoadModule(SYSMODULE_JPGDEC);
 	
 	atexit(appCleanup);
 	
@@ -254,7 +288,7 @@ s32 main(s32 argc, const char* argv[])
 	
 	init_screen();
 	ioPadInit(7);
-	SysLoadModule(SYSMODULE_CAM);
+	
 	
 	printf("cameraInit() returned %d\n", cameraInit());
 	

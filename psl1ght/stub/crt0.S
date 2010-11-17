@@ -43,3 +43,5 @@ __start:
 	.quad .TOC.@tocbase
 	.quad 0
 
+.align 3
+.section ".opd32","aw"

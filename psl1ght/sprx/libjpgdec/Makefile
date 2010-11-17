@@ -1,23 +1,18 @@
 .SUFFIXES:
-ifeq ($(strip $(PSL1GHT)),)
-$(error "PSL1GHT must be set in the environment.")
-endif
 
-include $(PSL1GHT)/Makefile.base
+-include ../../../Makefile.base
+-include ../../../../Makefile.base
 
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCE		:=	source
-INCLUDE		:=	include
+SOURCE		:=	../common .
+INCLUDE		:=	. ../../include
 DATA		:=	data
-LIBS		:=	-lsysutil
+LIBS		:=	
 
-TITLE		:=	VideoInfo Test - PSL1GHT
-APPID		:=	TEST0VID1
-CONTENTID	:=	UP0001-$(APPID)_00-0000000000000000
+LD			:=	ppu-ld
 
-CFLAGS		+= -g -O2 -Wall --std=gnu99
-CXXFLAGS	+= -g -O2 -Wall
+CFLAGS		:=	-O2
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
@@ -49,27 +44,21 @@ $(BUILD):
 
 clean:
 	@echo Clean...
-	@rm -rf $(BUILD) $(OUTPUT).elf $(OUTPUT).self $(OUTPUT).a $(OUTPUT).pkg
-
-pkg: $(BUILD)
-	@echo Creating PKG...
-	@mkdir -p $(BUILD)/pkg
-	@mkdir -p $(BUILD)/pkg/USRDIR
-	@cp $(ICON0) $(BUILD)/pkg/
-	@$(FSELF) -n $(BUILD)/$(TARGET).elf $(BUILD)/pkg/USRDIR/EBOOT.BIN
-	@$(SFO) --title "$(TITLE)" --appid "$(APPID)" -f $(SFOXML) $(BUILD)/pkg/PARAM.SFO
-	@$(PKG) --contentid $(CONTENTID) $(BUILD)/pkg/ $(OUTPUT).pkg
-	
-run: $(BUILD)
-	@$(PS3LOADAPP) $(OUTPUT).self
+	@rm -rf $(BUILD) $(OUTPUT).elf $(OUTPUT).self $(OUTPUT).a
 
 else
 
 DEPENDS	:= $(OFILES:.o=.d)
 
-$(OUTPUT).self: $(OUTPUT).elf
-$(OUTPUT).elf: $(OFILES)
-$(OFILES): $(BINFILES)
+$(OUTPUT).a: sprx.o loadjpg.o
+
+lib.o: lib.c
+	@echo "[CC]  $(notdir $<)"
+	@$(CC) $(DEPSOPTIONS) -S -m32 $(INCLUDES) $< -o lib.S
+	@$(CC) $(DEPSOPTIONS) -c lib.S -o $@
+
+sprx.o: stub.o lib.o
+	@$(LD) -r stub.o lib.o -o $@
 
 -include $(DEPENDS)
 

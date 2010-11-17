@@ -29,7 +29,7 @@ THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <malloc.h>
 #include <string.h>
 
-#include "libpng.h"
+#include <pngdec/loadpng.h>
 
 
 static void *png_malloc(u32 size, void * a) {
@@ -55,8 +55,6 @@ int LoadPNG(PngDatas *png, char *filename)
 	PngDecThreadInParam InThdParam;
 	PngDecThreadOutParam OutThdParam;
 
-	uint64_t build_malloc, build_free; // used to create the fake 32 bits addrs .opd for functions png_malloc() and png_free()
-
 	PngDecInParam inParam;
 	PngDecOutParam outParam;
 	
@@ -71,10 +69,10 @@ int LoadPNG(PngDatas *png, char *filename)
 	InThdParam.enable   = 0;
 	InThdParam.ppu_prio = 512;
 	InThdParam.spu_prio = 200;
-	InThdParam.addr_malloc_func  = build32_func_addr(png_malloc, &build_malloc); // (see sysmodule.h)
-	InThdParam.addr_malloc_arg   = 0; // no args: if you want one uses get32_addr() to get the 32 bit address (see sysmodule.h)
-	InThdParam.addr_free_func    = build32_func_addr(png_free, &build_free);     // (see sysmodule.h)
-	InThdParam.addr_free_arg    =  0; // no args  if you want one uses get32_addr() to get the 32 bit address (see sysmodule.h)
+	InThdParam.addr_malloc_func  = (u32)(u64) OPD32(png_malloc);
+	InThdParam.addr_malloc_arg   = 0; // no args
+	InThdParam.addr_free_func    = (u32)(u64) OPD32(png_free);
+	InThdParam.addr_free_arg    =  0; // no args
 
 
 	ret= PngDecCreate(&mHandle, &InThdParam, &OutThdParam);
@@ -87,10 +85,10 @@ int LoadPNG(PngDatas *png, char *filename)
 			
 		if(filename) {
 			src.stream_select = PNGDEC_FILE;
-			src.addr_file_name  = get32_addr(filename);
+			src.addr_file_name  = (u32)(u64) filename;
 		} else {
 			src.stream_select = PNGDEC_BUFFER;
-			src.addr_stream_ptr  = get32_addr((void *) png->png_in);
+			src.addr_stream_ptr  = (u32)(u64) png->png_in;
 			src.stream_size    = png->png_size;
 		}
 

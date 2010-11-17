@@ -95,13 +95,13 @@ int PngDecCreate(int * main_handle, PngDecThreadInParam *in, PngDecThreadOutPara
 
 int PngDecOpen(int main_handle, int * sub_handle, const PngDecSrc *src, uint32_t *space_allocated);
 
-int PngDecReadHeader(int main_handle, int subHandle, PngDecInfo *info);
+int PngDecReadHeader(int main_handle, int sub_handle, PngDecInfo *info);
 
-int PngDecSetParameter(int main_handle, int subHandle, const PngDecInParam *inParam, PngDecOutParam  *outParam);
+int PngDecSetParameter(int main_handle, int sub_handle, const PngDecInParam *inParam, PngDecOutParam  *outParam);
 
-int PngDecDecodeData(int main_handle, int subHandle, uint8_t *data, const uint64_t *bytes_per_line, PngDecDataInfo *dataInfo);
+int PngDecDecodeData(int main_handle, int sub_handle, uint8_t *data, const uint64_t *bytes_per_line, PngDecDataInfo *dataInfo);
 
-int PngDecClose(int main_handle, int subHandle);
+int PngDecClose(int main_handle, int sub_handle);
 
 int PngDecDestroy(int main_handle);
 

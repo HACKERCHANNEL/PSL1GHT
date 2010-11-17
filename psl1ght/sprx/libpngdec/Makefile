@@ -5,14 +5,14 @@
 
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCE		:=	../common
-INCLUDE		:=	.
+SOURCE		:=	../common .
+INCLUDE		:=	. ../../include
 DATA		:=	data
 LIBS		:=	
 
 LD			:=	ppu-ld
 
-CFLAGS		:=	-m32
+CFLAGS		:=	-O2
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
@@ -50,11 +50,11 @@ else
 
 DEPENDS	:= $(OFILES:.o=.d)
 
-$(OUTPUT).a: sprx.o
+$(OUTPUT).a: sprx.o loadpng.o
 
 lib.o: lib.c
 	@echo "[CC]  $(notdir $<)"
-	@$(CC) $(DEPSOPTIONS) -S $(CFLAGS) $(INCLUDES) $< -o lib.S
+	@$(CC) $(DEPSOPTIONS) -S -m32 $(INCLUDES) $< -o lib.S
 	@$(CC) $(DEPSOPTIONS) -c lib.S -o $@
 
 sprx.o: stub.o lib.o

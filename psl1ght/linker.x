@@ -177,7 +177,16 @@ SECTIONS
 	.dynamic        : { *(.dynamic) }
 
 	.toc1		  : ALIGN(8) { *(.toc1) }
-	.opd		  : ALIGN(8) { KEEP (*(.opd)) }
+	.opd		  : ALIGN(8) {
+		opd64_start = .;
+		KEEP (*(.opd))
+	}
+	__opd32_size = SIZEOF(.opd) / 3;
+	.opd32		  : ALIGN(8) {
+		opd32_start = .;
+		KEEP (*(.opd32))
+		. += __opd32_size;
+	}
 	.branch_lt	  : ALIGN(8) { *(.branch_lt) }
 	.got		: ALIGN(8) { *(.got .toc) }
 

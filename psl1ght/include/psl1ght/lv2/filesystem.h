@@ -39,7 +39,7 @@ typedef struct {
 typedef struct {
 	time_t actime;
 	time_t modtime;
-} Lv2FsUtime;
+} Lv2FsUtimbuf;
 
 LV2_SYSCALL lv2FsOpen(const char* path, s32 oflags, Lv2FsFile* fd, u32 mode, const void* arg, u64 argsize) { return Lv2Syscall6(801, (u64)path, oflags, (u64)fd, mode, (u64)arg, argsize); }
 LV2_SYSCALL lv2FsRead(Lv2FsFile fd, void* buf, u64 size, u64* read) { return Lv2Syscall4(802, fd, (u64)buf, size, (u64)read); }
@@ -58,5 +58,5 @@ LV2_SYSCALL lv2FsLSeek64(Lv2FsFile fd, s64 offset, s32 whence, u64* position) { 
 LV2_SYSCALL lv2FsFsync(Lv2FsFile fd) { return Lv2Syscall1(820, fd); }
 LV2_SYSCALL lv2FsTruncate(const char* path, u64 size) { return Lv2Syscall2(831, (u64)path, size); }
 LV2_SYSCALL lv2FsFtruncate(Lv2FsFile fd, u64 size) { return Lv2Syscall2(832, fd, size); }
-LV2_SYSCALL lv2FsUtime(const char* path, const Lv2FsUtime* times) { return Lv2Syscall2(815, (u64)path, (u64)times); }
+LV2_SYSCALL lv2FsUtime(const char* path, const Lv2FsUtimbuf* times) { return Lv2Syscall2(815, (u64)path, (u64)times); }
 LV2_SYSCALL lv2FsChmod(const char* path, Lv2FsMode mode) { return Lv2Syscall2(834, (u64)path, mode); }

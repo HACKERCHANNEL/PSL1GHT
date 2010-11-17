@@ -20,7 +20,7 @@
 
 #include <psl1ght/lv2.h>
 
-#include "libpng.h"
+#include <pngdec/loadpng.h>
 #include "psl1ght_png.bin.h" // png in memory
 
 gcmContextData *context; // Context to keep track of the RSX buffer.
@@ -65,6 +65,7 @@ void init_screen() {
 	vconfig.resolution = state.displayMode.resolution;
 	vconfig.format = VIDEO_BUFFER_FORMAT_XRGB;
 	vconfig.pitch = res.width * 4;
+	vconfig.aspect=state.displayMode.aspect;
 
 	assert(videoConfigure(0, &vconfig, NULL, 0) == 0);
 	assert(videoGetState(0, 0, &state) == 0); 
