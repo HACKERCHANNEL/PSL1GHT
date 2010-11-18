@@ -53,82 +53,77 @@ int GetBitFromLogicConsoleBitmap(PCONSOLE_RENDER Render, PCONSOLE_LOGIC Console,
 	}
 }
 
-void NextInLogicBitmap(UCHAR PosSize, PULONG pPos, PUCHAR pPosIntoPos)
+void FromSlotAndOffsetToCombined(PCONSOLE_RENDER Render, ULONG SlotX, ULONG SlotY, UCHAR OffsetX, UCHAR OffsetY, PULONG pCombinedX, PULONG pCombinedY)
 {
-	if(((*pPosIntoPos)++)==PosSize)
-	{
-		(*pPosIntoPos) = 0;
-		(*pPos)++;
-	}
+	*pCombinedX = (SlotX*Render->CharacterWidth)+OffsetX;
+	*pCombinedY = (SlotY*Render->CharacterHeight)+OffsetY;
 }
 
-void PreviousInLogicBitmap(UCHAR PosSize, PULONG pPos, PUCHAR pPosIntoPos)
+void FromCombinedToSlotAndOffset(PCONSOLE_RENDER Render, ULONG CombinedX, ULONG CombinedY, PULONG pSlotX, PULONG pSlotY, PUCHAR pOffsetX, PUCHAR pOffsetY)
 {
-	if(((*pPosIntoPos)--)==((UCHAR)-1))
-	{
-		(*pPosIntoPos) = PosSize-1;
-		(*pPos)--;
-	}
+	*pSlotX = CombinedX/Render->CharacterWidth;
+	*pOffsetX = CombinedX%Render->CharacterWidth;
+	*pSlotY = CombinedY/Render->CharacterHeight;
+	*pOffsetY = CombinedY%Render->CharacterHeight;
 }
 
 int IsCharPixelDropShadow(PCONSOLE_RENDER Render, PCONSOLE_LOGIC Console, ULONG CharCol, ULONG CharRow, UCHAR XOffsetIntoChar, UCHAR YOffsetIntoChar)
 {
-	ULONG SourceCharCol = CharCol;
-	ULONG SourceCharRow = CharRow;
-	UCHAR SourceXOffsetIntoChar = XOffsetIntoChar;
-	UCHAR SourceYOffsetIntoChar = YOffsetIntoChar;
+	ULONG CombinedX,CombinedY;
+
+	FromSlotAndOffsetToCombined(Render,CharCol,CharRow,XOffsetIntoChar,YOffsetIntoChar,&CombinedX,&CombinedY);
 
 	switch(Render->DropShadowOrientation)
 	{
 	case CONSOLE_RENDER_DROPSHADOWORIENTATION_NORTH:
 
-		NextInLogicBitmap(Render->CharacterHeight,&CharRow,&SourceYOffsetIntoChar);
-		
+		CombinedY++;
+
 		break;
 
 	case CONSOLE_RENDER_DROPSHADOWORIENTATION_NORTHEAST:
 
-		NextInLogicBitmap(Render->CharacterHeight,&CharRow,&SourceYOffsetIntoChar);
-		PreviousInLogicBitmap(Render->CharacterWidth,&CharCol,&SourceXOffsetIntoChar);
+		CombinedY++;
+		CombinedX--;
 
 		break;
 
 	case CONSOLE_RENDER_DROPSHADOWORIENTATION_EAST:
 
-		PreviousInLogicBitmap(Render->CharacterWidth,&CharCol,&SourceXOffsetIntoChar);
+		CombinedX--;
 
 		break;
 
 	case CONSOLE_RENDER_DROPSHADOWORIENTATION_SOUTHEAST:
 
-		PreviousInLogicBitmap(Render->CharacterHeight,&CharRow,&SourceYOffsetIntoChar);
-		PreviousInLogicBitmap(Render->CharacterWidth,&CharCol,&SourceXOffsetIntoChar);
+		CombinedX--;
+		CombinedY--;
 
 		break;
 
 	case CONSOLE_RENDER_DROPSHADOWORIENTATION_SOUTH:
 
-		PreviousInLogicBitmap(Render->CharacterHeight,&CharRow,&SourceYOffsetIntoChar);
+		CombinedY--;
 
 		break;
 
 	case CONSOLE_RENDER_DROPSHADOWORIENTATION_SOUTHWEST:
 
-		PreviousInLogicBitmap(Render->CharacterHeight,&CharRow,&SourceYOffsetIntoChar);
-		NextInLogicBitmap(Render->CharacterWidth,&CharCol,&SourceXOffsetIntoChar);
+		CombinedX++;
+		CombinedY--;
 
 		break;
 
 	case CONSOLE_RENDER_DROPSHADOWORIENTATION_WEST:
 
-		NextInLogicBitmap(Render->CharacterWidth,&CharCol,&SourceXOffsetIntoChar);
+		CombinedX++;
 
 		break;
 
 	case CONSOLE_RENDER_DROPSHADOWORIENTATION_NORTHWEST:
 
-		NextInLogicBitmap(Render->CharacterHeight,&CharRow,&SourceYOffsetIntoChar);
-		NextInLogicBitmap(Render->CharacterWidth,&CharCol,&SourceXOffsetIntoChar);
+		CombinedX++;
+		CombinedY++;
 
 		break;
 
@@ -136,10 +131,12 @@ int IsCharPixelDropShadow(PCONSOLE_RENDER Render, PCONSOLE_LOGIC Console, ULONG 
 		return FALSE;
 	}
 
-	return GetBitFromLogicConsoleBitmap(Render,Console,SourceCharCol,SourceCharRow,SourceXOffsetIntoChar,SourceYOffsetIntoChar);
+	FromCombinedToSlotAndOffset(Render,CombinedX,CombinedY,&CharCol,&CharRow,&XOffsetIntoChar,&YOffsetIntoChar);
+
+	return GetBitFromLogicConsoleBitmap(Render,Console,CharCol,CharRow,XOffsetIntoChar,YOffsetIntoChar);
 }
 
-void HandleBackgroundPixelDraw(PCONSOLE_RENDER Render, PCONSOLE_LOGIC Console, PCONSOLE_VIDEO Video, ULONG X, ULONG Y, UCHAR i, UCHAR j, UCHAR BackAttr)
+void HandleBackgroundPixelDraw(PCONSOLE_RENDER Render, PCONSOLE_LOGIC Console, PCONSOLE_VIDEO Video, ULONG X, ULONG Y, UCHAR i, UCHAR j, UCHAR BackAttr, int Masked)
 {
 	switch(Render->RenderingFlags)
 	{
@@ -151,7 +148,7 @@ void HandleBackgroundPixelDraw(PCONSOLE_RENDER Render, PCONSOLE_LOGIC Console, P
 		}
 		else
 		{
-			if(BackAttr!=Render->TransparentTextModeColor)
+			if((BackAttr!=Render->TransparentTextModeColor)||(Masked))
 			{
 				CONSOLE_VIDEO_PutPixel(Video, (X*Render->CharacterWidth)+i, (Y*Render->CharacterHeight)+j, Render->BasicColors[BackAttr]);
 			}
@@ -177,7 +174,7 @@ void HandleBackgroundPixelDraw(PCONSOLE_RENDER Render, PCONSOLE_LOGIC Console, P
 
 	case CONSOLE_RENDER_RENDERING_FLAG_TRANSPARENT:
 
-		if(BackAttr!=Render->TransparentTextModeColor)
+		if((BackAttr!=Render->TransparentTextModeColor)||(Masked))
 		{
 			CONSOLE_VIDEO_PutPixel(Video, (X*Render->CharacterWidth)+i, (Y*Render->CharacterHeight)+j, Render->BasicColors[BackAttr]);
 		}
@@ -211,7 +208,7 @@ void DrawAttrCharPairXY(PCONSOLE_RENDER Render, PCONSOLE_LOGIC Console, PCONSOLE
 			}
 			else
 			{
-				HandleBackgroundPixelDraw(Render,Console,Video,X,Y,i,j,BackAttr);
+				HandleBackgroundPixelDraw(Render,Console,Video,X,Y,i,j,BackAttr,FALSE);
 			}
 		}
 
@@ -227,6 +224,7 @@ void DrawAttrCharPairUnderCursorXY(PCONSOLE_RENDER Render, PCONSOLE_LOGIC Consol
 	UCHAR i, j;
 	UCHAR BackAttr, TextAttr;
 	ULONG MaskedBackAttr, MaskedTextAttr;
+	int Masked;
 
 	BackAttr = Attr>>4;
 	TextAttr = Attr&0x0F;
@@ -246,7 +244,9 @@ void DrawAttrCharPairUnderCursorXY(PCONSOLE_RENDER Render, PCONSOLE_LOGIC Consol
 	{
 		for(i = 0;i<Render->CharacterWidth;i++)
 		{
-			if(GetBitLeftToRight(pCurrentCursorMask, i))
+			Masked = GetBitLeftToRight(pCurrentCursorMask, i);
+
+			if(Masked)
 			{
 				MaskedBackAttr = (15-BackAttr)&0x07;
 				MaskedTextAttr = (15-TextAttr)&0x07;
@@ -263,7 +263,7 @@ void DrawAttrCharPairUnderCursorXY(PCONSOLE_RENDER Render, PCONSOLE_LOGIC Consol
 			}
 			else
 			{
-				HandleBackgroundPixelDraw(Render,Console,Video,X,Y,i,j,MaskedBackAttr);
+				HandleBackgroundPixelDraw(Render,Console,Video,X,Y,i,j,MaskedBackAttr,Masked);
 			}
 		}
 
@@ -280,6 +280,7 @@ void DrawAttrCharPairUnderMousePointerXY(PCONSOLE_RENDER Render, PCONSOLE_LOGIC 
 	UCHAR i, j;
 	UCHAR BackAttr, TextAttr;
 	ULONG MaskedBackAttr, MaskedTextAttr;
+	int Masked;
 
 	BackAttr = Attr>>4;
 	TextAttr = Attr&0x0F;
@@ -292,7 +293,9 @@ void DrawAttrCharPairUnderMousePointerXY(PCONSOLE_RENDER Render, PCONSOLE_LOGIC 
 	{
 		for(i = 0;i<Render->CharacterWidth;i++)
 		{
-			if(GetBitLeftToRight(pMousePointerMask, i))
+			Masked = GetBitLeftToRight(pMousePointerMask, i);
+
+			if(Masked)
 			{
 				MaskedBackAttr = (15-BackAttr)&0x07;
 				MaskedTextAttr = (15-TextAttr)&0x07;
@@ -309,7 +312,7 @@ void DrawAttrCharPairUnderMousePointerXY(PCONSOLE_RENDER Render, PCONSOLE_LOGIC 
 			}
 			else
 			{
-				HandleBackgroundPixelDraw(Render,Console,Video,X,Y,i,j,MaskedBackAttr);
+				HandleBackgroundPixelDraw(Render,Console,Video,X,Y,i,j,MaskedBackAttr,Masked);
 			}
 		}
 
@@ -327,6 +330,7 @@ void DrawAttrCharPairUnderCursorAndMousePointerXY(PCONSOLE_RENDER Render, PCONSO
 	UCHAR i, j;
 	UCHAR BackAttr, TextAttr;
 	ULONG MaskedBackAttr, MaskedTextAttr;
+	int Masked;
 
 	BackAttr = Attr>>4;
 	TextAttr = Attr&0x0F;
@@ -348,7 +352,9 @@ void DrawAttrCharPairUnderCursorAndMousePointerXY(PCONSOLE_RENDER Render, PCONSO
 	{
 		for(i = 0;i<Render->CharacterWidth;i++)
 		{
-			if(GetBitLeftToRight(pCurrentCursorMask, i)^GetBitLeftToRight(pMousePointerMask, i))
+			Masked = GetBitLeftToRight(pCurrentCursorMask, i)^GetBitLeftToRight(pMousePointerMask, i);
+
+			if(Masked)
 			{
 				MaskedBackAttr = (15-BackAttr)&0x07;
 				MaskedTextAttr = (15-TextAttr)&0x07;
@@ -365,7 +371,7 @@ void DrawAttrCharPairUnderCursorAndMousePointerXY(PCONSOLE_RENDER Render, PCONSO
 			}
 			else
 			{
-				HandleBackgroundPixelDraw(Render,Console,Video,X,Y,i,j,MaskedBackAttr);
+				HandleBackgroundPixelDraw(Render,Console,Video,X,Y,i,j,MaskedBackAttr,Masked);
 			}
 		}
 
