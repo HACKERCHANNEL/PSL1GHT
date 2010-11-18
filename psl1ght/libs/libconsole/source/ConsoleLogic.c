@@ -1,4 +1,7 @@
-#include <ConsoleLogic.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <console/ConsoleLogic.h>
 
 int CONSOLE_LOGIC_Initialize(PCONSOLE_LOGIC Console, ULONG Columns, ULONG Rows)
 {

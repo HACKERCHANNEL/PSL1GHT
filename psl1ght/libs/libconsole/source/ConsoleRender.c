@@ -1,4 +1,4 @@
-#include <ConsoleRender.h>
+#include <console/ConsoleRender.h>
 
 int CONSOLE_RENDER_Initialize(PCONSOLE_RENDER Render, UCHAR SlotWidth, UCHAR SlotHeight, ULONG CursorBlinkFrames, PULONG pBasicColors, PUCHAR pCharacterMasks, PUCHAR pCursorMask, PUCHAR pCursorInsertMask, PUCHAR pMousePointerMask)
 {

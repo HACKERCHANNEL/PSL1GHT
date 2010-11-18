@@ -1,4 +1,4 @@
-#include <ConsoleVideo.h>
+#include <console/ConsoleVideo.h>
 
 int CONSOLE_VIDEO_Initialize(PCONSOLE_VIDEO Video, PUCHAR FrameBuffer, ULONG ResolutionX, ULONG ResolutionY, UCHAR ResolutionBPP, ULONG ResolutionScanLine, ULONG ViewPortX, ULONG ViewPortWidth, ULONG ViewPortY, ULONG ViewPortHeight)
 {
