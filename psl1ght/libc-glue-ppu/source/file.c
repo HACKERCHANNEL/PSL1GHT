@@ -169,10 +169,9 @@ int rename(const char* old, const char* new)
 }
 */
 
-int link(const char* old, const char* new)
+int link(const char* oldpath, const char* newpath)
 {
-	errno = ENOSYS;
-	return -1;
+	return lv2Errno(lv2FsLink(oldpath, newpath));
 }
 
 off_t lseek(int fd, off_t offset, int whence)

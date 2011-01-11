@@ -60,3 +60,4 @@ LV2_SYSCALL lv2FsTruncate(const char* path, u64 size) { return Lv2Syscall2(831, 
 LV2_SYSCALL lv2FsFtruncate(Lv2FsFile fd, u64 size) { return Lv2Syscall2(832, fd, size); }
 LV2_SYSCALL lv2FsUtime(const char* path, const Lv2FsUtimbuf* times) { return Lv2Syscall2(815, (u64)path, (u64)times); }
 LV2_SYSCALL lv2FsChmod(const char* path, Lv2FsMode mode) { return Lv2Syscall2(834, (u64)path, mode); }
+LV2_SYSCALL lv2FsLink(const char* oldpath, const char* newpath) { return Lv2Syscall2(810, (u64)oldpath, (u64)newpath); }
