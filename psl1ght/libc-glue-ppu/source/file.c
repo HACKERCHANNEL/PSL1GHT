@@ -47,7 +47,10 @@ int open(const char* path, int oflag, ...)
 
 	int ret = lv2FsOpen(path, lv2flag, &fd, mode, NULL, 0);
 	if (ret)
-		return lv2Errno(ret);
+	{
+		lv2Errno(ret);
+		return -1;
+	}
 
 	if (oflag & O_CREAT)
 		lv2FsChmod(path, DEFAULT_FILE_MODE);
