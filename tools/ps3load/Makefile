@@ -1,14 +1,16 @@
 CFLAGS += -Wall -Os -g -pipe
 
-ifeq ($(WIN32), 1)
-PREFIX ?= i586-mingw32msvc-
-BIN_EXT = .exe
-CFLAGS += -Iwin32/include
-LDFLAGS += -Lwin32/lib -lws2_32 -lz
+UNAME	:=	$(shell uname -s)
+
+ifneq (,$(findstring MINGW,$(UNAME)))
+PREFIX	?=
+CFLAGS	+=	-I"$(PS3DEV)/include"
+LDFLAGS	+=	-L"$(PS3DEV)/lib" -lws2_32 -lz
+BIN_EXT	?=	.exe
 else
-PREFIX ?=
-BIN_EXT =
-LDFLAGS += -lz
+PREFIX	?=
+BIN_EXT	?=
+LDFLAGS	+= -lz
 endif
 
 ifeq ($(FTDI), 1)

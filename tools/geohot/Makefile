@@ -1,10 +1,11 @@
-ifdef WIN32
-CFLAGS	+=	-I"C:\Program Files (x86)\GnuWin32\include" -L"C:\OpenSSL-Win32\lib\MinGW"
-LDFLAGS	+=	-lgmp -leay32 \
-	-L"C:\OpenSSL-Win32\lib\MinGW" "C:\Program Files (x86)\GnuWin32\bin\zlib1.dll"
-POSTFIX	:=	exe
+UNAME	:=	$(shell uname -s)
+
+ifneq (,$(findstring MINGW,$(UNAME)))
+CFLAGS	+=	-I"$(PS3DEV)/include"
+LDFLAGS	+=	-L"$(PS3DEV)/lib" -lgmp -lcrypto -lz
+POSTFIX	:=	
 else
-CFLAGS	+=	-I/opt/local/include -I/opt/local -L/opt/local/lib
+CFLAGS	+=	-I/opt/local/include -I/opt/local
 LDFLAGS	+=	-L/opt/local/lib -lgmp -lcrypto -lz
 POSTFIX	:=	
 endif

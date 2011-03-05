@@ -1,19 +1,29 @@
 #include <Python.h>
+
+#ifdef MINGW
+#include <sys/types.h>
+typedef unsigned char UNSIGNED8;
+typedef unsigned long long UNSIGNED64;
+#else
 #include <stdint.h>
+typedef uint8_t UNSIGNED8;
+typedef uint64_t UNSIGNED64;
+#endif
 
 static PyObject *sha1_callback = NULL;
 
-static void manipulate(uint8_t *key) {
+static void manipulate(UNSIGNED8 *key)
+{
 	/* We need to cast each byte to a 64 bit int so that gcc won't truncate it
 	   down to a 32 bit in before shifting */
-	uint64_t temp = ((uint64_t) key[0x38]) << 56|
-			((uint64_t) key[0x39]) << 48|
-			((uint64_t) key[0x3a]) << 40|
-			((uint64_t) key[0x3b]) << 32|
-			key[0x3c] << 24|
-			key[0x3d] << 16|
-			key[0x3e] <<  8|
-			key[0x3f];
+	UNSIGNED64 temp =	((UNSIGNED64)	key[0x38]) << 56 |
+			((UNSIGNED64)	key[0x39]) << 48 |
+			((UNSIGNED64)	key[0x3a]) << 40 |
+			((UNSIGNED64)	key[0x3b]) << 32 |
+				key[0x3c] <<  24 |
+				key[0x3d] <<  16 |
+				key[0x3e] <<  8  |
+				key[0x3f];
 	temp++;
 	key[0x38] = (temp >> 56) & 0xff;
 	key[0x39] = (temp >> 48) & 0xff;
@@ -25,35 +35,36 @@ static void manipulate(uint8_t *key) {
 	key[0x3f] = (temp >>  0) & 0xff;
 }
 
-static PyObject* pkg_crypt(PyObject *self, PyObject *args) {
-	uint8_t *key, *input, *ret;
-	int key_length, input_length, length;
+static PyObject* pkg_crypt(PyObject *self, PyObject *args)
+{
+	UNSIGNED8 *key, *input, *ret, *outHash;
+	int key_length, input_length, length, outHash_length;
 	int remaining, i, offset=0;
 
-	PyObject *arglist;
-	PyObject *result;
+	PyObject *arglist, *result, *py_ret;
 
 	if (!PyArg_ParseTuple(args, "s#s#i", &key, &key_length, &input, &input_length, &length))
 		return NULL;
+
 	ret = malloc(length);
 	remaining = length;
 	
-	while (remaining > 0) {
+	while (remaining > 0)
+	{
 		int bytes_to_dump = remaining;
 		if (bytes_to_dump > 0x10) 
 			bytes_to_dump = 0x10;
 
-		// outhash = SHA1(listToString(key)[0:0x40])
-		uint8_t *outHash; 
+		// outhash = SHA1(listToString(key)[0:0x40]);
+
+		arglist = Py_BuildValue("(s#)", key, 0x40);
+		result = PyObject_CallObject(sha1_callback, arglist);
+		Py_DECREF(arglist);
+		if (!result) return NULL;
+		if (!PyArg_Parse(result, "s#", &outHash, &outHash_length)) return NULL;
+
+		for(i = 0; i < bytes_to_dump; i++)
 		{
-			arglist = Py_BuildValue("(s#)", key, 0x40);
-			result = PyObject_CallObject(sha1_callback, arglist);
-			Py_DECREF(arglist);
-			if (!result) return NULL;
-			int outHash_length;
-			if (!PyArg_Parse(result, "s#", &outHash, &outHash_length)) return NULL;
-		}
-		for(i = 0; i < bytes_to_dump; i++) {
 			ret[offset] = outHash[i] ^ input[offset];
 			offset++;
 		}
@@ -63,17 +74,20 @@ static PyObject* pkg_crypt(PyObject *self, PyObject *args) {
 	}
 	
 	// Return the encrypted data
-	PyObject *py_ret = Py_BuildValue("s#", ret, length);
+	py_ret = Py_BuildValue("s#", ret, length);
 	free(ret);
 	return py_ret;
 }
 
-static PyObject *register_sha1_callback(PyObject *self, PyObject *args) {
+static PyObject *register_sha1_callback(PyObject *self, PyObject *args)
+{
 	PyObject *result = NULL;
 	PyObject *temp;
 
-	if (PyArg_ParseTuple(args, "O:set_callback", &temp)) {
-        	if (!PyCallable_Check(temp)) {
+	if (PyArg_ParseTuple(args, "O:set_callback", &temp))
+	{
+        	if (!PyCallable_Check(temp))
+		{
 		    	PyErr_SetString(PyExc_TypeError, "parameter must be callable");
 	    		return NULL;
 		}
@@ -93,7 +107,8 @@ static PyMethodDef cryptMethods[] = {
 	{NULL, NULL, 0, NULL}
 };
 
-PyMODINIT_FUNC initpkgcrypt(void) {
+PyMODINIT_FUNC initpkgcrypt(void)
+{
 	(void) Py_InitModule("pkgcrypt", cryptMethods);
 }
 

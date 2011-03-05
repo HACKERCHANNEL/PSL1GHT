@@ -1,8 +1,12 @@
+UNAME	:=	$(shell uname -s)
+ifneq (,$(findstring MINGW,$(UNAME)))
+OPTIONS	:=	-DMINGW
+endif
 
 all: pkgcrypt.so
 
 pkgcrypt.so: crypt.c setup.py
-	@`./find-python2` setup.py build_ext
+	@`./find-python2` setup.py build_ext $(OPTIONS)
 	@cp build/lib.*/pkgcrypt.* .
 
 clean:
