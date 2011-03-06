@@ -77,7 +77,7 @@ int main(int argc, const char* argv[])
 		printf("Usage: %s [elf path]\n", argv[0]);
 		return 0;
 	}
-	int fd = open(argv[1], O_RDWR);
+	int fd = open(argv[1], O_RDWR | O_BINARY);
 	if (fd < 0) {
 		fprintf(stderr, "Unable to open elf file: %s\n", argv[1]);
 		return 1;
