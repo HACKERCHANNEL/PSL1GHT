@@ -1,6 +1,6 @@
 UNAME	:=	$(shell uname -s)
 ifneq (,$(findstring MINGW,$(UNAME)))
-OPTIONS	:= -cmingw32 -DMINGW
+OPTIONS	:= -cmingw32
 endif
 
 all: pkgcrypt.so

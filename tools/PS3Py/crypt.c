@@ -1,25 +1,16 @@
 #include <Python.h>
-
-#ifdef MINGW
-#include <sys/types.h>
-typedef unsigned char UNSIGNED8;
-typedef unsigned long long UNSIGNED64;
-#else
 #include <stdint.h>
-typedef uint8_t UNSIGNED8;
-typedef uint64_t UNSIGNED64;
-#endif
 
 static PyObject *sha1_callback = NULL;
 
-static void manipulate(UNSIGNED8 *key)
+static void manipulate(uint8_t *key)
 {
 	/* We need to cast each byte to a 64 bit int so that gcc won't truncate it
 	   down to a 32 bit in before shifting */
-	UNSIGNED64 temp =	((UNSIGNED64)	key[0x38]) << 56 |
-			((UNSIGNED64)	key[0x39]) << 48 |
-			((UNSIGNED64)	key[0x3a]) << 40 |
-			((UNSIGNED64)	key[0x3b]) << 32 |
+	uint64_t temp =	((uint64_t)	key[0x38]) << 56 |
+			((uint64_t)	key[0x39]) << 48 |
+			((uint64_t)	key[0x3a]) << 40 |
+			((uint64_t)	key[0x3b]) << 32 |
 				key[0x3c] <<  24 |
 				key[0x3d] <<  16 |
 				key[0x3e] <<  8  |
@@ -37,7 +28,7 @@ static void manipulate(UNSIGNED8 *key)
 
 static PyObject* pkg_crypt(PyObject *self, PyObject *args)
 {
-	UNSIGNED8 *key, *input, *ret, *outHash;
+	uint8_t *key, *input, *ret, *outHash;
 	int key_length, input_length, length, outHash_length;
 	int remaining, i, offset=0;
 

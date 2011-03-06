@@ -4,13 +4,13 @@ UNAME	:=	$(shell uname -s)
 
 ifneq (,$(findstring MINGW,$(UNAME)))
 PREFIX	?=
-CFLAGS	+=	-I"$(PS3DEV)/include"
-LDFLAGS	+=	-L"$(PS3DEV)/lib" -lws2_32 -lz
+CFLAGS	+=	
+LDFLAGS	+=	-lws2_32 -lz
 BIN_EXT	?=	.exe
 else
 PREFIX	?=
 BIN_EXT	?=
-LDFLAGS	+= -lz
+LDFLAGS	+=	-lz
 endif
 
 ifeq ($(FTDI), 1)
