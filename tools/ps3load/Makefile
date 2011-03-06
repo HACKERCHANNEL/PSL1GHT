@@ -28,6 +28,7 @@ OBJS = main.o
 all: $(BIN)
 
 clean:
+	@echo clean...
 	@rm -f *.o core core.* $(BIN)
 
 strip: all

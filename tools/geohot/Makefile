@@ -27,6 +27,7 @@ install: $(TARGETS)
 	@install -m 755 $(TARGETS) $(PSL1GHT)/host/bin/
 
 clean:
-	@rm -f $(TARGETS)
+	@echo clean...
+	@rm -f $(TARGETS) *.exe
 
 .PHONY: install clean

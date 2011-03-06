@@ -104,7 +104,7 @@ $(BUILD):
 
 #---------------------------------------------------------------------------------
 clean:
-	@echo clean ...
+	@echo clean...
 	@rm -fr $(BUILD) $(OUTPUT)$(EXEEXT)
 
 install:

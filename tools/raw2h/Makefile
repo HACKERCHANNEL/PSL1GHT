@@ -10,7 +10,8 @@ CFILES		:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.c)))
 all: $(TARGET)
 
 clean:
-	rm -rf $(TARGET)
+	@echo clean...
+	@rm -rf $(TARGET) *.exe
 
 install: all
 	@cp $(TARGET) $(PSL1GHT)/host/bin/
